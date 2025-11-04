@@ -1,0 +1,52 @@
+name: Deploy Eldaa Admin (Flutter Web)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.29.3"
+          channel: "stable"
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Build web (release)
+        run: flutter build web --release
+        # If you use a custom base-href or web-renderer, add flags as needed
+
+      - name: Upload build to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CONTABO_IP }}
+          username: ${{ secrets.CONTABO_USER }}
+          port: ${{ secrets.CONTABO_PORT }}
+          password: ${{ secrets.CONTABO_PASSWORD }}
+          source: "build/web/*"
+          target: ${{ secrets.CONTABO_DIR }}
+          strip_components: 1
+          overwrite: true
+
+      - name: Reload Nginx
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CONTABO_IP }}
+          username: ${{ secrets.CONTABO_USER }}
+          port: ${{ secrets.CONTABO_PORT }}
+          password: ${{ secrets.CONTABO_PASSWORD }}
+          script: |
+            nginx -t
+            systemctl reload nginx
